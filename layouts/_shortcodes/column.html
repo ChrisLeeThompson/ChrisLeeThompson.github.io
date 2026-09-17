@@ -1,0 +1,76 @@
+{{- /*
+Project shortcode: one cell of a `columns` block.
+
+Renders nothing itself. Like Hextra's `tab`, it hands its content to its parent
+through .Parent.Store so that `columns` knows how many cells exist -- and can
+therefore check `ratio` against that count -- before it emits any markup.
+
+Content is deindented here rather than by using .InnerDeindent, which does not
+go far enough: shortcodes in this project are written indented (see the filetree
+block in content/scripts/aquilos2_cryo_utilities.md), and if the content is
+indented to match its tags, four or more leading spaces make markdown treat the
+whole column as an indented code block. .InnerDeindent leaves enough of that
+indentation behind for it to still happen, silently. The pass below finds the
+smallest indent over all non-blank lines and removes exactly that from every
+line, so relative indentation -- a nested list, an intentionally indented code
+block -- is preserved while the common margin goes away.
+
+@param {string} [class] Extra classes on the cell, e.g. "not-prose".
+
+@example {{< column >}}Any markdown: paragraphs, lists, code fences, or a nested
+                       shortcode such as {{< img >}}.{{< /column >}}
+@example {{< column class="not-prose" >}}Unstyled content.{{< /column >}}
+*/ -}}
+
+{{- if not .Parent -}}
+  {{- errorf "shortcode %q: used on its own -- it must be nested inside a `columns` shortcode, in %s" .Name .Position -}}
+{{- else if ne .Parent.Name "columns" -}}
+  {{- errorf "shortcode %q: its parent is %q, but it must be nested directly inside `columns`, in %s" .Name .Parent.Name .Position -}}
+{{- else -}}
+
+  {{- /* ---------- Deindent ----------
+  Blank and whitespace-only lines are ignored when measuring, so the indented
+  `{{< /column >}}` on the closing line does not drag the common indent down to
+  its own -- which is exactly how .InnerDeindent leaves a code block behind. */ -}}
+  {{- /* Line endings are normalised on both paths: content files on this
+  machine are CRLF, and the two branches must not differ in what they emit. */ -}}
+  {{- $content := replace .Inner "\r\n" "\n" -}}
+  {{- $lines   := split $content "\n" -}}
+  {{- $indent  := -1 -}}
+  {{- range $lines -}}
+    {{- if trim . " \t" -}}
+      {{- $n := sub (len .) (len (strings.TrimLeft " \t" .)) -}}
+      {{- if or (eq $indent -1) (lt $n $indent) -}}{{- $indent = $n -}}{{- end -}}
+    {{- end -}}
+  {{- end -}}
+
+  {{- if gt $indent 0 -}}
+    {{- $out := slice -}}
+    {{- range $lines -}}
+      {{- /* An explicit branch, not `cond`: `cond` is a function, so it would
+      evaluate substr even on a blank line shorter than the indent. */ -}}
+      {{- if gt (len .) $indent -}}
+        {{- $out = $out | append (substr . $indent) -}}
+      {{- else -}}
+        {{- $out = $out | append "" -}}
+      {{- end -}}
+    {{- end -}}
+    {{- $content = delimit $out "\n" -}}
+  {{- end -}}
+
+  {{- /* .Parent.Position, not .Position: Hugo reports a *nested* shortcode's
+  own position as 1:1, whereas the enclosing `columns` block resolves correctly
+  and is close enough to find. */ -}}
+  {{- if not (trim $content " \t\r\n") -}}
+    {{- warnf "shortcode %q: column %d is empty and will render as blank space, in the `columns` block at %s" .Name (add .Ordinal 1) .Parent.Position -}}
+  {{- end -}}
+
+  {{- $cols := .Parent.Store.Get "columns" | default slice -}}
+  {{- .Parent.Store.Set "columns" ($cols | append (dict
+        "content" $content
+        "class"   (.Get "class" | default "")
+      ))
+  -}}
+
+{{- end -}}
+{{- /* Strip trailing newline. */ -}}

@@ -1,0 +1,123 @@
+/* ==========================================================================
+   Project styles.
+
+   Hextra loads this file LAST -- after variables.css and the prebuilt
+   compiled/main.css -- in both `hugo server` and production builds (see the
+   theme's layouts/_partials/head.html). It only ever passes through
+   resources.Concat and minify, NEVER PostCSS, so `@apply`,
+   `@import "tailwindcss"` and Tailwind nesting all silently do nothing here.
+   Write plain CSS. There is no custom.scss; Hextra v0.12.3 is not Sass.
+
+   Tailwind's output sits in @layer theme / base / components / utilities.
+   These rules are unlayered, so they beat every hx: utility regardless of
+   specificity. Keep the selectors narrow.
+
+   Dark mode is class="dark" on <html>, and the theme's dark variant compiles
+   to :where(.dark, .dark *), so `.dark .thing { }` composes correctly. Never
+   use @media (prefers-color-scheme: dark) here -- it would ignore an explicit
+   choice made with the navbar toggle. There are no --hextra-* colour tokens
+   and Tailwind's --hx-color-* tokens are tree-shaken, so use the theme's
+   literal values: borders #e5e7eb / #262626, muted text #6b7280 / #9ca3af,
+   page background #fff / #111.
+   ========================================================================== */
+
+
+/* --------------------------------------------------------------------------
+   Side-by-side columns
+   layouts/_shortcodes/columns.html + layouts/_shortcodes/column.html
+
+   Flexbox, with no breakpoint at all. The content column of a Hextra docs page
+   is 719px wide at a 767px viewport but only 416px at 768px, because the 16rem
+   sidebar and main's wider padding both switch on at md -- available width is
+   not monotonic in viewport width, so any @media rule would turn the columns
+   on exactly where there is least room. flex-wrap reflows on the real
+   container width, wraps one column at a time when there are three or more,
+   and survives a change to the sidebar or the page width.
+
+   With a 16rem minimum and a 1.5rem gutter, two columns need 536px of content
+   width: stacked on phones and at a 768px viewport, side by side from 1024px.
+   -------------------------------------------------------------------------- */
+
+.page-columns {
+  --page-columns-gap: 1.5rem;
+  --page-columns-min: 16rem;
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--page-columns-gap);
+  margin-top: 1.5rem;
+}
+
+/* Mirrors typography.css's `first:mt-0` on paragraphs and lists. */
+.page-columns:first-child {
+  margin-top: 0;
+}
+
+/* A captioned row: given caption=, the shortcode wraps .page-columns in this
+   <figure>. Tailwind preflight zeroes figure margins, so the figure takes over
+   the row's outer margin -- and .page-columns, now the figure's first child,
+   has its own margin zeroed by the rule above. The figcaption needs no rules
+   here at all: Hextra styles every figcaption under .content (centred, small,
+   grey, dark-mode aware), the same rule that styles an `img` caption. */
+.page-columns-figure {
+  margin-top: 1.5rem;
+}
+
+.page-columns-figure:first-child {
+  margin-top: 0;
+}
+
+/* Match the gap a per-image caption gets. There, the img's 1rem bottom margin
+   (Hextra gives img margin-block spacing*4) collapses with the figcaption's
+   0.5rem top margin (spacing*2) to 1rem; here the flex row has no bottom
+   margin, so Hextra's 0.5rem would leave the row caption sitting visibly
+   tighter. The extra type selector outranks Hextra's
+   `.content :where(figure) figcaption` rule regardless of bundle order. */
+figure.page-columns-figure > figcaption {
+  margin-top: 1rem;
+}
+
+.page-column {
+  /* --page-column-grow carries the `ratio` share, stamped inline by the
+     shortcode. flex-basis 0% makes the grow factors an exact split, so
+     ratio="3:2" really is 60/40. Longhands rather than the `flex` shorthand:
+     an invalid var() would otherwise invalidate the whole declaration. */
+  flex-grow: var(--page-column-grow, 1);
+  flex-shrink: 1;
+  flex-basis: 0%;
+
+  /* The row wraps rather than squeezing a column below this. This also
+     overrides the min-width:auto that flex items get by default -- without it
+     a <pre>, a wide <table> or a long path would refuse to shrink below its
+     content width and push the whole page into horizontal scroll. min() keeps
+     a lone full-width column from overflowing a narrower container. */
+  min-width: min(var(--page-columns-min), 100%);
+
+  /* Long unbreakable strings in running text wrap instead of widening the
+     column. <pre> and <table> already carry overflow-x:auto from typography. */
+  overflow-wrap: break-word;
+}
+
+/* Align the tops of the columns. typography.css resets the top margin on a
+   column's first <p>/<ul>, but always gives <img> margin-block:1rem, so a
+   screenshot would start 1rem below the prose beside it. The second selector
+   reaches the <img> inside a <p> (goldmark wraps a standalone markdown image)
+   or inside a <figure> (a captioned image), where that margin collapses out
+   through the zero-margin parent. Those typography rules are written with
+   :where(), which contributes no specificity, so plain selectors win. */
+.page-column > :first-child,
+.page-column > :first-child > img:first-child {
+  margin-top: 0;
+}
+
+.page-column > :last-child,
+.page-column > :last-child > img:last-child {
+  margin-bottom: 0;
+}
+
+@media print {
+  .page-column {
+    break-inside: avoid;
+  }
+}

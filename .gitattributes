@@ -1,0 +1,12 @@
+# Store and check out text files with LF so the Windows working copy and the
+# Linux Pages build agree; never let autodetection touch binary images.
+* text=auto eol=lf
+*.svg text eol=lf
+*.png binary
+*.gif binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary

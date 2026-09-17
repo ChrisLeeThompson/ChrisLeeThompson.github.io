@@ -1,0 +1,22 @@
+{{- /*
+Green badge showing the current page's front-matter `version`, linked to the
+GitHub release tag built from front-matter `repo`. Single source: bump
+`version` in the page's front matter and the badge text, its link, and the
+card subtitle on the Scripts index (see layouts/_shortcodes/card.html) all
+follow.
+
+@example Latest version: {{< version-badge >}}
+*/ -}}
+{{- $version := .Page.Params.version -}}
+{{- $repo := .Page.Params.repo -}}
+{{- if not $version -}}
+  {{- errorf "version-badge: page %s has no 'version' in front matter" .Page.File.Path -}}
+{{- end -}}
+{{- if not $repo -}}
+  {{- errorf "version-badge: page %s has no 'repo' in front matter" .Page.File.Path -}}
+{{- end -}}
+{{- $link := printf "https://github.com/ChrisLeeThompson/%s/releases/tag/v%s" $repo $version -}}
+<a href="{{ $link }}" title="{{ $version }}" target="_blank" class="not-prose hx:inline-flex hx:align-middle hx:no-underline hover:hx:no-underline">
+  {{- partial "shortcodes/badge.html" (dict "content" $version "color" "green" "border" true) -}}
+</a>
+{{- /* Strip trailing newline. */ -}}

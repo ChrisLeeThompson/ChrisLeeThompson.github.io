@@ -1,0 +1,177 @@
+{{- /*
+Project shortcode: N side-by-side columns of markdown.
+
+Exists because Hextra ships no multi-column layout. `cards` is a link component
+-- every cell is an <a> with a border and a hover lift, and `card` never reads
+its inner content -- and `hextra/feature-grid` hardcodes `not-prose`, which
+strips paragraph margins, list bullets and link colours from everything inside
+it. This shortcode is layout only: no colour, no border, no hover, and the page
+typography inside a column is left completely alone. That is also why it needs
+no dark-mode rules at all. (The optional `caption` is the one styled piece, and
+its look -- centred, small, grey, dark-mode aware -- comes from Hextra's own
+figcaption rule, the same one that styles an `img` caption.)
+
+Call it with angle delimiters. Each cell is a nested `column` shortcode, which
+renders nothing itself and hands its content up through .Parent.Store, exactly
+as Hextra's tab/tabs pair does. Collecting the cells first is what lets this
+template check `ratio` against the real column count and catch content left
+between two `column` blocks -- both silent layout bugs otherwise.
+
+Columns reflow on the width of their *container*, not on a viewport breakpoint.
+On a Hextra docs page the content column is 719px wide at a 767px viewport but
+only 416px at 768px, because the 16rem sidebar and main's wider padding both
+switch on at md -- available width is not monotonic in viewport width, so a
+media query would turn the columns on at the worst possible moment. flex-wrap
+plus a per-column min-width reflows at the real width, wraps one column at a
+time when there are three or more, and stays correct if the sidebar or the page
+width is ever reconfigured.
+
+Numbers are emitted as CSS custom properties in an inline `style`, per Hextra's
+own convention for dynamic values (cf. --hextra-cards-grid-cols in
+_partials/shortcodes/cards.html), and never as generated Tailwind classes:
+Hextra ships a prebuilt assets/css/compiled/main.css that Tailwind never scanned
+for this project, so an unlisted hx: class emits no CSS at all, silently.
+
+Requires the .page-columns rules in assets/css/custom.css, and
+markup.goldmark.renderer.unsafe = true in hugo.yaml for nested shortcodes.
+
+@param {string} [ratio] Colon-separated shares, one part per column: "3:2",
+                        "1:1", "40:60". Unitless positive numbers. Default is
+                        equal columns. A column is never squeezed below `min`,
+                        so an extreme ratio is approximated rather than honoured
+                        exactly -- lower `min` if that matters.
+@param {string} [gap]   CSS length for the gutter: "24", "24px", "2rem".
+                        Default 1.5rem.
+@param {string} [min]   CSS length. A column is never narrower than this; the
+                        row stacks instead. Default 16rem, i.e. two columns need
+                        536px of content width. Raise it to stack sooner.
+@param {string} [align] Vertical alignment: "top" (default), "center", "bottom",
+                        "stretch".
+@param {string} [caption] Caption; rendered as inline markdown. Wraps the row in
+                        <figure> and puts a single <figcaption> under all the
+                        columns, styled by Hextra exactly like an `img` caption.
+                        Composes with per-image captions on nested `img` calls.
+@param {string} [class] Extra classes on the wrapper, e.g. "not-prose".
+
+@example {{< columns ratio="3:2" >}}
+             {{< column >}}
+                 The **RT Prep** page has three activities:
+
+                 * Argon Purge
+                 * Cooldown
+                 * Sample Transfer
+             {{< /column >}}
+             {{< column >}}
+                 {{< img src="/aquilos2_cryo_utilities/rt_prep_page.png" alt="RT Prep page" >}}
+             {{< /column >}}
+         {{< /columns >}}
+*/ -}}
+
+{{- $ratio   := .Get "ratio"   | default "" -}}
+{{- $gap     := .Get "gap"     | default "" -}}
+{{- $min     := .Get "min"     | default "" -}}
+{{- $align   := .Get "align"   | default "" -}}
+{{- $caption := .Get "caption" | default "" -}}
+{{- $class   := .Get "class"   | default "" -}}
+
+{{- /* ---------- Collect the columns ----------
+Reading .Inner is what runs the nested `column` shortcodes; each writes itself
+into this shortcode's .Store and renders nothing. Whatever is left in .Inner is
+therefore content the author put inside `columns` but outside any `column`,
+which would otherwise become an unstyled flex item wedged between two cells. */ -}}
+{{- $stray := trim .Inner " \t\r\n" -}}
+{{- $cols  := .Store.Get "columns" | default slice -}}
+
+{{- with $stray -}}
+  {{- errorf "shortcode %q: found loose content inside it -- every piece of content must sit in its own nested `column` shortcode. It begins %q, in %s" $.Name (substr . 0 40) $.Position -}}
+{{- end -}}
+
+{{- if eq (len $cols) 0 -}}
+  {{- errorf "shortcode %q: needs at least one nested `column` shortcode, in %s" .Name .Position -}}
+{{- end -}}
+
+{{- /* ---------- Column shares ---------- */ -}}
+{{- $numRE  := `^[0-9]*\.?[0-9]+$` -}}
+{{- $shares := slice -}}
+{{- with $ratio -}}
+  {{- $parts := split . ":" -}}
+  {{- if ne (len $parts) (len $cols) -}}
+    {{- errorf "shortcode %q: ratio=%q has %d part(s) but there are %d column(s) -- give exactly one part per column, e.g. ratio=\"3:2\" for two columns, in %s" $.Name . (len $parts) (len $cols) $.Position -}}
+  {{- else -}}
+    {{- range $parts -}}
+      {{- $p := trim . " " -}}
+      {{- if not (findRE $numRE $p) -}}
+        {{- errorf "shortcode %q: ratio part %q is not a positive unitless number (try ratio=\"3:2\" or ratio=\"40:60\") in %s" $.Name $p $.Position -}}
+      {{- else if not (gt (float $p) 0.0) -}}
+        {{- errorf "shortcode %q: ratio part %q must be greater than zero, in %s" $.Name $p $.Position -}}
+      {{- else -}}
+        {{- $shares = $shares | append $p -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- /* No ratio given, or one that was rejected above: equal columns. */ -}}
+{{- if ne (len $shares) (len $cols) -}}
+  {{- $shares = slice -}}
+  {{- range $cols -}}{{- $shares = $shares | append "1" -}}{{- end -}}
+{{- end -}}
+
+{{- /* ---------- Normalise gap and min to CSS lengths ----------
+KEEP IN SYNC with layouts/_shortcodes/img.html, which uses the same pair. */ -}}
+{{- $lengthRE := `^[0-9]*\.?[0-9]+(px|%|rem|em|vw|vh|vmin|vmax|ch|pt|pc|in|cm|mm)?$` -}}
+{{- $bareRE   := `^[0-9]*\.?[0-9]+$` -}}
+
+{{- with $gap -}}
+  {{- if not (findRE $lengthRE .) -}}
+    {{- errorf "shortcode %q: gap=%q is not a CSS length (try 24, 24px, 2rem) in %s" $.Name . $.Position -}}
+  {{- end -}}
+  {{- if findRE $bareRE . -}}{{- $gap = printf "%spx" . -}}{{- end -}}
+{{- end -}}
+
+{{- with $min -}}
+  {{- if not (findRE $lengthRE .) -}}
+    {{- errorf "shortcode %q: min=%q is not a CSS length (try 256, 256px, 16rem) in %s" $.Name . $.Position -}}
+  {{- end -}}
+  {{- if findRE $bareRE . -}}{{- $min = printf "%spx" . -}}{{- end -}}
+{{- end -}}
+
+{{- /* ---------- Vertical alignment ---------- */ -}}
+{{- $alignValue := "" -}}
+{{- with $align -}}
+  {{- $alignValue = index (dict "top" "flex-start" "center" "center" "bottom" "flex-end" "stretch" "stretch") . -}}
+  {{- if not $alignValue -}}
+    {{- errorf "shortcode %q: align=%q is not one of top, center, bottom, stretch, in %s" $.Name . $.Position -}}
+  {{- end -}}
+{{- end -}}
+
+{{- /* ---------- Wrapper style ---------- */ -}}
+{{- $decls := slice -}}
+{{- with $gap        -}}{{- $decls = $decls | append (printf "--page-columns-gap:%s" .) -}}{{- end -}}
+{{- with $min        -}}{{- $decls = $decls | append (printf "--page-columns-min:%s" .) -}}{{- end -}}
+{{- with $alignValue -}}{{- $decls = $decls | append (printf "align-items:%s" .) -}}{{- end -}}
+{{- $style := delimit $decls ";" -}}
+
+{{- /* ---------- Output ----------
+Emitted with no newlines between the elements, so a `>` never starts a line if
+this block is ever re-rendered as markdown inside another container -- the same
+reason Hextra's tabs partial keeps its HTML on one line (imfing/hextra#876).
+
+Guarded on $cols because errorf logs and keeps executing rather than aborting:
+without the guard a bad call would panic on an out-of-range index instead of
+reporting the error raised above.
+
+A caption wraps the row in a <figure> so the single <figcaption> under all the
+columns picks up Hextra's caption styling -- the same mechanism as img.html. */ -}}
+{{- if $cols -}}
+{{- with $caption -}}<figure class="page-columns-figure">{{- end -}}
+<div class="page-columns{{ with $class }} {{ . }}{{ end }}"{{ with $style }} style="{{ . | safeCSS }}"{{ end }}>
+  {{- range $i, $col := $cols -}}
+    <div class="page-column{{ with $col.class }} {{ . }}{{ end }}" style="{{ printf "--page-column-grow:%s" (index $shares $i) | safeCSS }}">
+      {{- $col.content | $.Page.RenderString (dict "display" "block") -}}
+    </div>
+  {{- end -}}
+</div>
+{{- with $caption -}}<figcaption>{{- $.Page.RenderString . -}}</figcaption></figure>{{- end -}}
+{{- end -}}
+{{- /* Strip trailing newline. */ -}}

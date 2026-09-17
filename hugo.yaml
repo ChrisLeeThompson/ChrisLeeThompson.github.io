@@ -1,0 +1,86 @@
+baseURL: https://chrisleethompson.github.io/
+languageCode: en-us
+title: Chris's GitHub Page
+
+# Use each content file's last git commit date as its "last updated" date
+# (params.displayUpdatedDate below). The Pages workflow checks out the full
+# history (fetch-depth: 0) so this works in CI as well as locally.
+enableGitInfo: true
+
+module:
+  imports:
+    - path: github.com/imfing/hextra
+
+markup:
+  goldmark:
+    renderer:
+      # Goldmark is Hugo's Markdown engine. At its default of false it DELETES
+      # any raw HTML found in a .md file, substituting "<!-- raw HTML omitted -->".
+      # That default guards sites which accept Markdown from untrusted authors;
+      # this one is single-author, so it only gets in the way.
+      #
+      # Required by layouts/_shortcodes/columns.html: Hugo renders nested
+      # shortcodes before the enclosing one and splices their output in as a
+      # plain HTML string, so by the time a column re-renders its Markdown (to
+      # turn a bullet list into a <ul>) a nested {{< img >}} is already literal
+      # <img> text -- which Goldmark would otherwise discard. Also fixes nested
+      # shortcodes inside Hextra's own callout and tabs.
+      unsafe: true
+
+menu:
+  main:
+    - name: Search
+      params:
+        type: search
+  sidebar:
+    - identifier: about
+      name: About
+      pageRef: "/about"
+
+params:
+  description: A website for Chris Thompson's GitHub projects.
+
+  # How script cards show the auto-filled "Latest version" subtitle
+  # (layouts/_shortcodes/card.html): "badge" for the green pill matching the
+  # script pages, "text" for Hextra's default plain subtitle text. A single
+  # card can override this with its own versionStyle="badge"/"text" param.
+  cardVersionStyle: text
+
+  page:
+    displayPagination: false
+
+  navbar:
+    displayTitle: true
+    displayLogo: false
+  
+  theme:
+    default: system
+    displayToggle: true
+
+  footer:
+    enable: true
+    displayCopyright: true
+    displayPoweredBy: true
+    width: normal
+  
+  # Display the last modification date
+  displayUpdatedDate: true
+  dateFormat: "January 2, 2006"
+
+  # Display the author name of the last modified date
+  displayUpdatedAuthor: false
+
+  # Search
+  search:
+    enable: true
+    type: flexsearch
+
+    flexsearch:
+      # index page by: content | summary | heading | title
+      index: content
+      # full | forward | reverse | strict
+      # https://github.com/nextapps-de/flexsearch/#tokenizer-prefix-search
+      tokenize: forward
+  
+  imageZoom:
+    enable: true

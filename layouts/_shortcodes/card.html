@@ -1,0 +1,107 @@
+{{- /*
+Project override of Hextra's _shortcodes/card.html (v0.12.3).
+
+Identical to the theme's version except for one addition: when no explicit
+`subtitle` is given and `link` points to an internal page whose front matter
+declares a `version`, the subtitle is auto-filled with "Latest version: X".
+This keeps script version numbers single-sourced in each script page's front
+matter (see layouts/_shortcodes/version-badge.html).
+
+Keep in sync with the theme shortcode if Hextra is upgraded.
+
+  @param {string} link The link to the card.
+  @param {string} title The title of the card.
+  @param {string} icon The icon of the card.
+  @param {string} subtitle The subtitle of the card.
+  @param {string} tag The tag of the card.
+  @param {string} tagColor The color of the tag.
+  @param {string} image The image of the card.
+  @param {string} alt The alt text for the image (defaults to title if not provided).
+  @param {string} method The method to process the image.
+  @param {string} options The options to process the image.
+  @param {string} imageStyle The style of the image.
+  @param {string} versionStyle "badge" or "text" for the auto-filled version
+                  subtitle; overrides site params.cardVersionStyle.
+
+  @example {{< card link="/" title="Image Card"
+}}
+*/ -}}
+{{- $link := .Get "link" -}}
+{{- $title := .Get "title" -}}
+{{- $icon := .Get "icon" -}}
+{{- $subtitle := .Get "subtitle" -}}
+{{- $image := .Get "image" -}}
+{{- $alt := .Get "alt" | default $title -}}
+{{- $width := 0 -}}
+{{- $height := 0 -}}
+{{- $imageStyle := .Get "imageStyle" -}}
+{{- $tag := .Get "tag" -}}
+{{- $tagColor := .Get "tagColor" | default (.Get "tagType") | default "" -}}{{- /* Compatibility with previous parameter. */ -}}
+{{- $tagBorder := not (eq (.Get "tagBorder") false) | default true }}
+{{- $tagIcon := .Get "tagIcon" | default "" -}}
+
+{{- /* Auto-fill subtitle from the linked page's front-matter version.
+
+       Two styles, chosen by the card's `versionStyle` param, falling back to
+       `params.cardVersionStyle` in hugo.yaml, then to "text":
+         badge - the same green badge pill the script pages use (see
+                 version-badge.html). The badge HTML survives the partial's
+                 `markdownify` because hugo.yaml sets goldmark unsafe: true.
+                 It is a span-only badge, so it is valid inside the card's <a>
+                 wrapper, but deliberately unlinked: a nested link would be
+                 invalid HTML, and the whole card already links to the page.
+         text  - plain "Latest version: X", as a stock Hextra subtitle. */ -}}
+{{- $versionStyle := .Get "versionStyle" | default site.Params.cardVersionStyle | default "text" -}}
+{{- if and (not $subtitle) (strings.HasPrefix $link "/") -}}
+  {{- with site.GetPage (strings.TrimSuffix "/" $link) -}}
+    {{- with .Params.version -}}
+      {{- if eq $versionStyle "badge" -}}
+        {{- $badge := partial "shortcodes/badge.html" (dict "content" . "color" "green" "border" true) -}}
+        {{- $subtitle = printf "Latest version: %s" $badge -}}
+      {{- else -}}
+        {{- $subtitle = printf "Latest version: %s" . -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{/* Image processing options */}}
+{{- $method := .Get "method" | default "Resize" | humanize -}}
+{{- $options := .Get "options" | default "800x webp q80" -}}
+{{- $process := .Get "process" | default (printf "%s %s" $method $options) -}}
+
+{{- if and $image (not (urls.Parse $image).Scheme) -}}
+  {{- with or (.Page.Resources.Get $image) (resources.Get $image) -}}
+    {{/* .Process does not work on svgs */}}
+    {{- if (not (eq .MediaType.SubType "svg")) -}}
+      {{/* Retrieve the $image resource from local or global resources */}}
+      {{- $processed := .Process $process -}}
+      {{- $width = $processed.Width -}}
+      {{- $height = $processed.Height -}}
+      {{- $image = $processed.RelPermalink -}}
+    {{- end -}}
+  {{ else }}
+    {{/* Otherwise, use relative link of the image */}}
+    {{- if hasPrefix $image "/" -}}
+      {{- $image = relURL (strings.TrimPrefix "/" $image) -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- partial "shortcodes/card" (dict
+  "page"        .Page
+  "link"        $link
+  "title"       $title
+  "icon"        $icon
+  "subtitle"    $subtitle
+  "image"       $image
+  "alt"         $alt
+  "width"       $width
+  "height"      $height
+  "imageStyle"  $imageStyle
+  "tag"         $tag
+  "tagType"     $tagColor
+  "tagBorder"   $tagBorder
+  "tagIcon"     $tagIcon
+  )
+-}}

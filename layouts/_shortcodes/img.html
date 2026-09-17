@@ -1,0 +1,129 @@
+{{- /*
+Project shortcode: a sized, optionally captioned image.
+
+Exists because Hextra ships no image shortcode and Hugo's embedded `figure`
+shortcode is unsuitable here (it emits width/height as HTML attributes rather
+than CSS, has no static/ fallback in its src resolution, and emits neither
+data-zoomable nor loading="lazy").
+
+The "Resolve src" block below is copied from Hextra's
+layouts/_markup/render-image.html (v0.12.3) with `.PageInner` swapped for
+`.Page` -- shortcodes have no .PageInner method -- so that /foo.png resolves
+identically for page-bundle resources, assets/ and static/. One addition:
+raster images found in assets/ are converted to WebP (q85, no resize) before
+their URL is taken, which needs the Hugo extended build.
+KEEP IN SYNC with the theme render hook if Hextra is upgraded.
+
+Sizing is emitted as an inline `style`, not as width/height HTML attributes and
+not as Tailwind classes: Hextra ships a prebuilt assets/css/compiled/main.css,
+so arbitrary Tailwind values in project files are never generated.
+Tailwind preflight already supplies `max-width:100%` and `height:auto` for img,
+and typography.css supplies `margin-inline:auto` -- so a width-only value
+scales proportionally, never overflows, and centres itself with no extra CSS.
+
+All parameters are named -- Hugo rejects mixing positional and named arguments
+in a single shortcode call, and every useful call here carries a width.
+
+@param {string} src       Image path, e.g. "/aquilos2_cryo_utilities/foo.png".
+@param {string} [alt]     Alt text.
+@param {string} [caption] Caption; rendered as inline markdown, wraps output in <figure>.
+@param {string} [width]   CSS length: "60%", "400", "400px", "20rem", "50vw".
+@param {string} [height]  CSS length. Use one of width/height for proportional scaling.
+@param {string} [class]   Extra classes on the <img> (e.g. "not-prose").
+
+@example {{< img src="/aquilos2_cryo_utilities/rt_prep_page.png" alt="RT Prep page" width="60%" >}}
+@example {{< img src="/aquilos2_cryo_utilities/settings_page.png" alt="Settings" caption="The **Settings** page" width="420px" >}}
+*/ -}}
+
+{{- $src     := .Get "src" -}}
+{{- $alt     := .Get "alt"     | default "" -}}
+{{- $caption := .Get "caption" | default "" -}}
+{{- $width   := .Get "width"   | default "" -}}
+{{- $height  := .Get "height"  | default "" -}}
+{{- $class   := .Get "class"   | default "" -}}
+
+{{- if not $src -}}
+  {{- errorf "shortcode %q: missing required parameter %q in %s" .Name "src" .Position -}}
+{{- end -}}
+
+{{- /* ---------- Normalise sizes to CSS lengths ---------- */ -}}
+{{- $lengthRE := `^[0-9]*\.?[0-9]+(px|%|rem|em|vw|vh|vmin|vmax|ch|pt|pc|in|cm|mm)?$` -}}
+{{- $bareRE   := `^[0-9]*\.?[0-9]+$` -}}
+
+{{- with $width -}}
+  {{- if not (findRE $lengthRE .) -}}
+    {{- errorf "shortcode %q: width=%q is not a CSS length (try 60%%, 400, 400px, 20rem) in %s" $.Name . $.Position -}}
+  {{- end -}}
+  {{- if findRE $bareRE . -}}{{- $width = printf "%spx" . -}}{{- end -}}
+{{- end -}}
+
+{{- with $height -}}
+  {{- if not (findRE $lengthRE .) -}}
+    {{- errorf "shortcode %q: height=%q is not a CSS length (try 300, 300px, 20rem) in %s" $.Name . $.Position -}}
+  {{- end -}}
+  {{- if findRE $bareRE . -}}{{- $height = printf "%spx" . -}}{{- end -}}
+{{- end -}}
+
+{{- $decls := slice -}}
+{{- with $width  -}}{{- $decls = $decls | append (printf "width:%s" .) -}}{{- end -}}
+{{- with $height -}}{{- $decls = $decls | append (printf "height:%s" .) -}}{{- end -}}
+{{- if and $width  (not $height) -}}{{- $decls = $decls | append "height:auto" -}}{{- end -}}
+{{- if and $height (not $width)  -}}{{- $decls = $decls | append "width:auto"  -}}{{- end -}}
+{{- $style := delimit $decls ";" -}}
+
+{{- /* ---------- Resolve src (adapted from Hextra render-image.html) ---------- */ -}}
+{{- $url                := urls.Parse $src -}}
+{{- $dest               := $src -}}
+{{- $isLocal            := not $url.Scheme -}}
+{{- $isPage             := and (eq .Page.Kind "page") (not .Page.BundleType) -}}
+{{- $startsWithSlash    := hasPrefix $src "/" -}}
+{{- $startsWithRelative := hasPrefix $src "../" -}}
+{{- $query              := cond $url.RawQuery (printf "?%s" $url.RawQuery) "" -}}
+{{- $fragment           := cond $url.Fragment (printf "#%s" $url.Fragment) "" -}}
+
+{{- if and $src $isLocal -}}
+  {{- if $startsWithSlash -}}
+    {{- with or ($.Page.Resources.Get $url.Path) (resources.Get $url.Path) -}}
+      {{- /* Page bundle resource or assets/. Raster images are re-encoded as
+             WebP at build time (same pattern as card.html) so a 5 MB screenshot
+             ships as a few hundred KB; SVG and GIF are served as-is because
+             .Process cannot handle them. Requires the Hugo extended build. */ -}}
+      {{- $res := . -}}
+      {{- if and (eq .MediaType.MainType "image") (not (in (slice "svg" "gif") .MediaType.SubType)) -}}
+        {{- $res = .Process "webp q85" -}}
+      {{- end -}}
+      {{- $dest = printf "%s%s%s" $res.RelPermalink $query $fragment -}}
+    {{- else -}}
+      {{- /* static/ */ -}}
+      {{- $dest = relURL (strings.TrimPrefix "/" $src) -}}
+    {{- end -}}
+  {{- else -}}
+    {{- with $.Page.Resources.Get (strings.TrimPrefix "./" $url.Path) -}}
+      {{- $dest = printf "%s%s%s" .RelPermalink $query $fragment -}}
+    {{- else -}}
+      {{- if and $isPage (not $startsWithRelative) -}}
+        {{- $dest = printf "../%s" $src -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+{{- /* ---------- Zoom + lazy loading (mirrors the theme render hook) ---------- */ -}}
+{{- $lazy := .Page.Site.Params.enableImageLazyLoading | default true -}}
+{{- $zoom := .Page.Site.Params.imageZoom.enable | default false -}}
+{{- if not (eq .Page.Params.imageZoom nil) -}}
+  {{- $zoom = .Page.Params.imageZoom -}}
+{{- end -}}
+{{- if $zoom -}}
+  {{- .Page.Store.Set "hasImageZoom" true -}}
+{{- end -}}
+
+{{- /* ---------- Output ---------- */ -}}
+{{- if $caption -}}
+  <figure>
+    <img src="{{ $dest | safeURL }}" alt="{{ $alt }}"{{ with $class }} class="{{ . }}"{{ end }}{{ with $style }} style="{{ . | safeCSS }}"{{ end }}{{ if $zoom }} data-zoomable{{ end }}{{ if $lazy }} loading="lazy"{{ end }} />
+    <figcaption>{{ $.Page.RenderString $caption }}</figcaption>
+  </figure>
+{{- else -}}
+  <img src="{{ $dest | safeURL }}" alt="{{ $alt }}"{{ with $class }} class="{{ . }}"{{ end }}{{ with $style }} style="{{ . | safeCSS }}"{{ end }}{{ if $zoom }} data-zoomable{{ end }}{{ if $lazy }} loading="lazy"{{ end }} />
+{{- end -}}
