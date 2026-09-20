@@ -16,7 +16,7 @@ All of the scripts are in development (some are more in a state of development t
 
 ## Acknowledgements
 
-These scripts benefited from support and helpful feedback from colleagues (TFS and St. Jude Children's Research Hospital), friends, and other users. Thank you for everyone's assistance!
+These scripts benefited from support and helpful feedback from colleagues (TFS and St. Jude Children's Research Hospital), friends, and other users. Thank you for everyone's assistance! Thank you, Arthur Alves De Melo, for your helpful ideas and assistance with the ASV Project Explorer and ATC Project Explorer.
 
 Most of the scripts started as simple user interfaces as I learned Python and PySide. As I continue to learn Python, I have recently started to work with Anthropic's Claude to rapidly update the original scripts and build new ones.
 
