@@ -96,6 +96,16 @@ To install, follow the general steps under [Installing A Script](/scripts/#insta
 
 The script's main file is `atc_monitor.py`. See [Running A Script](/scripts/#running-a-script) on the [Scripts](/scripts/) page for how to run it with the AutoScript Python interpreter or the AutoScript Runner application.
 
+## Running With AutoTEM Cryo
+
+The ATC Monitor was designed to analyze rectangle patterns created by AutoTEM Cryo's Rough Milling activity.
+
+ATC Monitor has an automated contrast and brightness routine that can interfere with ATC's Drift Corrected Monitor (DCM). For this reason, when running ATC Monitor with ATC, it is best to disable DCM in ATC's Rough Milling activity.
+
+ATC's default Rough Milling activity DCM Rescan Interval is `120 s`. To effectively disable DCM, set the value to a large duration, such as `1000000000 s`.
+
+Note the Arctis WebUI Rough Milling activity DCM has a checkbox that can be checked or unchecked. A large duration is not needed to disable its DCM.
+
 ## Getting Started
 
 {{< img src="/atc_monitor/atc_monitor_ui_not_connected.png" caption="ATC Monitor UI (not connected to the AutoScript Server)." alt="ATC Monitor UI not connected to AutoScript" width="90%" >}}
