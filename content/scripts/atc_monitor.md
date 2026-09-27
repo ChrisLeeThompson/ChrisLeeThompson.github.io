@@ -1,7 +1,7 @@
 ---
 title: ATC Monitor
 breadcrumbs: false
-version: "3.4.4"
+version: "3.4.7"
 repo: ATC_Monitor
 ---
 
@@ -76,7 +76,7 @@ ATC Monitor can save the images being pulled from the RTM data. It saves the raw
 
 The script's requirements differ from the standard list under [Requirements](/scripts/#requirements) on the [Scripts](/scripts/) page. The script requires:
 
-* PySide6 6.7.1 (pinned; the worker teardown path was validated against this release)
+* PySide6 6.7.1
 * shiboken6 6.7.1
 * Python 3.11+
 * NumPy 2.2.5+
@@ -236,9 +236,9 @@ Every parameter has a tooltip in the application, so rather than repeating them 
 * Image Processing --- how each RTM image is prepared and how the foreground is isolated for the Percent Pixels/Foreground Energy metric: Gaussian blur, dilation, the Binarization Method and its related parameters, and the Foreground Completion Mode with its stall-latch settings (see [Pattern Monitoring: Grid Bar](#pattern-monitoring-grid-bar)).
 * Image Analysis --- how the slopes of the mean pixel values and match scores are calculated (Gradient or Linear Regression, and over how many points), plus the aspect-ratio threshold that keeps monitoring idle for narrow patterns such as stress-relief cuts.
 * Pattern Matching --- the sub-region grid used for analysis: the cropped RTM area is divided into tiles, mean pixel values and match scores are calculated per tile, and the highest values drive the results. To reduce sensitivity, increase the target tile size and reduce the minimum number of sub-regions.
-* Contrast/Brightness Calibration --- automatic detector contrast/brightness balancing: whether it runs, how often, its brightness and dynamic-range targets, clipping limits, and measurement budget.
+* Contrast/Brightness Calibration --- automatic detector contrast/brightness balancing: whether and when it runs, its Target Contrast and Target Brightness, clipping limits, and measurement budget.
 
-With Auto-Calibrate on Start enabled, the script calibrates detector contrast and brightness once at the start of a run, aiming for a target median brightness and dynamic range while keeping clipping within the set limits. The measured response of each detector is cached in `logs\cb_plant.json` and reused to speed up later runs. The file is created automatically, is keyed by system name so several microscopes can share one deployment, and can be deleted safely.
+With Auto-Calibrate on Start enabled, the script calibrates detector contrast and brightness when patterning starts, aiming for the Target Contrast and Target Brightness while keeping clipping within the set limits, and then holds that setting so the analysis criteria are not disrupted. A start calibration that does not converge is run a second time. By default, only the first patterning session of a run is calibrated; Recalibrate Every Session calibrates every session, and Recalibrate After Delay and Recalibrate at First Confirmation each add one more calibration during a session. Each calibration measures the detector's response on the live RTM images.
 
 ## Files the Application Writes
 
@@ -246,12 +246,11 @@ All paths are relative to the script's root directory unless shown otherwise.
 
 | Path | Contents | Growth |
 | --- | --- | --- |
-| `logs\atc_monitor.log` | Main application log, one line per event. | Rotating, 5 MB × 5 files. |
+| `logs\atc_monitor.log` | Main application log, one line per event. | Rotating, 5 MB per file; about 30 MB at most. |
 | `logs\faulthandler.log` | Crash and diagnostic record, copied here at startup from the local per-user copy. | Rotates to `.1` at 5 MB. |
 | `%LOCALAPPDATA%\ATC_Monitor\logs\faulthandler.log` | The live crash record, kept on local disk so a crash is never lost to a network share. | Swept and reset at each launch. |
-| `Saved_Data\Run-N_<timestamp>\` | Images, per-batch metrics, plots, and run metadata. Written only when Save Data is checked. | One directory per run; delete when no longer needed. |
-| `logs\cb_plant.json` | Learned detector response, keyed by system name. | A few hundred bytes. |
+| `Saved_Data\Run-N_<timestamp>\` | Images, per-batch metrics, plots, run metadata, and the calibration trace (`cb_trace.csv`) when a calibration ran. Written only when Save Data is checked. | One directory per run; delete when no longer needed. |
 
 If the script directory is not writable, the script falls back to `%LOCALAPPDATA%` for its logs and reports where they went in the log's first lines. Log retention is automatic; only `Saved_Data` grows without limit.
 
-The first line of `logs\atc_monitor.log` records the running version, for example `LAUNCH app=3.4.4`. Check it after updating to confirm the version you intended is the one running.
+Each launch adds a line such as `LAUNCH app=3.4.7` to `logs\atc_monitor.log`. Check the newest one after updating to confirm the version you intended is the one running.
