@@ -252,5 +252,3 @@ All paths are relative to the script's root directory unless shown otherwise.
 | `Saved_Data\Run-N_<timestamp>\` | Images, per-batch metrics, plots, run metadata, and the calibration trace (`cb_trace.csv`) when a calibration ran. Written only when Save Data is checked. | One directory per run; delete when no longer needed. |
 
 If the script directory is not writable, the script falls back to `%LOCALAPPDATA%` for its logs and reports where they went in the log's first lines. Log retention is automatic; only `Saved_Data` grows without limit.
-
-Each launch adds a line such as `LAUNCH app=3.4.7` to `logs\atc_monitor.log`. Check the newest one after updating to confirm the version you intended is the one running.
