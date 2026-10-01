@@ -1,7 +1,7 @@
 ---
 title: ATC Project Explorer
 breadcrumbs: false
-version: "1.4.2"
+version: "1.5.0"
 repo: ATC_Project_Explorer
 ---
 
@@ -75,9 +75,18 @@ The Global Project Data page has four main panels/groupboxes. They are:
 
 ### Global Statistics
 
-{{< img src="/atc_project_explorer/atc_project_explorer_global_statistics_1.png" caption="Global Statistics calculated from all lamella sites." alt="ATC Project Explorer Global Statistics" width="60%" >}}
+{{< columns >}}
+    {{< column >}}
+        {{< img src="/atc_project_explorer/atc_project_explorer_global_statistics_1.png" caption="Global Statistics calculated from all lamella sites." alt="ATC Project Explorer Global Statistics 1" width="90%" >}}
+    {{< /column >}}
+    {{< column >}}
+        {{< img src="/atc_project_explorer/atc_project_explorer_global_statistics_2.png" caption="Mean durations from all activities and sites." alt="ATC Project Explorer Global Statistics 2" width="90%" >}}
+    {{< /column >}}
+{{< /columns >}}
 
 The Global Statistics groupbox shows statistical data calculated from all selected lamella sites in the project. The sites included in the calculations can be selected in the Site Durations groupbox.
+
+Scroll down to see mean durations calculated for each activity across all selected lamella sites.
 
 ### Site Previews
 
@@ -93,7 +102,7 @@ The Site Durations plot displays the total duration for each site and the durati
 
 ATC has three main recipes when creating a lamella. These are Preparation, Milling, and Thinning. The lamella placement duration is separated from the Preparation duration as this is one of the few activities that is not automated.
 
-Hover the mouse cursor over a recipe section to see its duration, and click any of the recipe durations or lamella site names to open the associated lamella page.
+Hover the mouse cursor over a recipe section to see its total duration and the durations of each activity in the recipe. Click any of the recipe durations or lamella site names to open the associated lamella page.
 
 The checkboxes to the left of the site names can be checked or unchecked to add or remove the sites from the global statistics calculations.
 
