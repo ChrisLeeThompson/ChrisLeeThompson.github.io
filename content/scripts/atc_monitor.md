@@ -98,13 +98,21 @@ The script's main file is `atc_monitor.py`. See [Running A Script](/scripts/#run
 
 ## Running With AutoTEM Cryo
 
-The ATC Monitor was designed to analyze rectangle patterns created by AutoTEM Cryo's Rough Milling activity.
+{{< img src="/atc_monitor/atc_monitor_rough_milling_DCM_1-highlight.png" caption="Rough Milling activity DCM Rescan Interval (highlighted)." alt="AutoTEM Cryo Rough Milling activity with the DCM Rescan Interval highlighted" width="90%" >}}
 
-ATC Monitor has an automated contrast and brightness routine that can interfere with ATC's Drift Corrected Monitor (DCM). For this reason, when running ATC Monitor with ATC, it is best to disable DCM in ATC's Rough Milling activity.
+ATC Monitor was designed to analyze Rectangle patterns created by AutoTEM Cryo's Rough Milling activity.
+
+ATC Monitor has an automated contrast and brightness routine (Auto-Calibrate on Start, enabled by default) that can interfere with ATC's Drift-Corrected Milling (DCM).
+
+{{< callout type="warning" >}}
+When running ATC Monitor with ATC and using Auto-Calibrate on Start to automatically adjust contrast and brightness, it is best to disable DCM in ATC's Rough Milling activity.
+{{< /callout >}}
 
 ATC's default Rough Milling activity DCM Rescan Interval is `120 s`. To effectively disable DCM, set the value to a large duration, such as `1000000000 s`.
 
 Note the Arctis WebUI Rough Milling activity DCM has a checkbox that can be checked or unchecked. A large duration is not needed to disable its DCM.
+
+If you do not want ATC Monitor to adjust contrast and brightness automatically, the Auto-Calibrate on Start feature can be disabled in the Contrast/Brightness Calibration section in [Settings](#settings). You may then need to adjust the contrast and brightness of the live RTM data manually.
 
 ## Getting Started
 
